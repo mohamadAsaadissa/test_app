@@ -1,48 +1,47 @@
-from streamlit.components.v1 import html
 import streamlit as st
+from streamlit.components.v1 import html
 import json
 
-st.title("🌍 تحديد الموقع عبر GPS (المتصفح)")
+st.title("📍 تحديد الموقع الجغرافي عبر GPS (بدون مكتبات خارجية)")
 
+# عنصر لعرض النتائج
+location_display = st.empty()
+
+# كود JavaScript مدمج داخل HTML
 html_code = """
 <script>
-navigator.geolocation.getCurrentPosition(
-    (position) => {
-        const coords = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-        };
-        const jsonStr = JSON.stringify(coords);
-        window.parent.postMessage(jsonStr, "*");
-    },
-    (error) => {
-        const jsonStr = JSON.stringify({error: error.message});
-        window.parent.postMessage(jsonStr, "*");
-    }
-);
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const coords = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            };
+            const data = JSON.stringify(coords);
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = 'data:text/plain,' + encodeURIComponent(data);
+            document.body.appendChild(iframe);
+        },
+        function(error) {
+            const errorData = JSON.stringify({error: error.message});
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = 'data:text/plain,' + encodeURIComponent(errorData);
+            document.body.appendChild(iframe);
+        }
+    );
 </script>
 """
 
-location = st.empty()
-
-def get_coords():
-    return st.session_state.get("coords", None)
-
-# Listen for message from JavaScript
+# تشغيل الكود
 html(html_code, height=0)
 
-# Receive coords using streamlit events
-from streamlit_javascript import st_javascript
+# تعليمات للمستخدم
+st.info("يرجى السماح للمتصفح بالوصول إلى موقعك، ثم أعد تحميل الصفحة بعد بضع ثوان.")
 
-coords = st_javascript("await new Promise(resolve => { window.addEventListener('message', e => resolve(e.data)); })")
-if coords:
-    try:
-        parsed = json.loads(coords)
-        if "latitude" in parsed and "longitude" in parsed:
-            st.success(f"✅ الإحداثيات: {parsed['latitude']}, {parsed['longitude']}")
-            st.session_state["coords"] = parsed
-        else:
-            st.error(f"❌ خطأ في تحديد الموقع: {parsed.get('error', 'غير معروف')}")
-    except Exception:
-        st.error("❌ لم يتمكن من قراءة البيانات.")
-
+# إدخال يدوي كخطة بديلة
+with st.expander("🔧 أو أدخل الموقع يدويًا إذا لم يعمل التحديد التلقائي"):
+    lat = st.number_input("خط العرض (Latitude)", format="%.6f")
+    lon = st.number_input("خط الطول (Longitude)", format="%.6f")
+    if lat and lon:
+        st.success(f"تم إدخال الإحداثيات يدويًا: {lat}, {lon}")
